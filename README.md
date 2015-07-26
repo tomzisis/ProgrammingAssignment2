@@ -1,105 +1,104 @@
-### Introduction
+The code in `run_analysis.R` script,performs an analysis of the data from accelerometers from the Samsung Galaxy S smartphones.First of all , 
 
-This second programming assignment will require you to write an R
-function that is able to cache potentially time-consuming computations.
-For example, taking the mean of a numeric vector is typically a fast
-operation. However, for a very long vector, it may take too long to
-compute the mean, especially if it has to be computed repeatedly (e.g.
-in a loop). If the contents of a vector are not changing, it may make
-sense to cache the value of the mean so that when we need it again, it
-can be looked up in the cache rather than recomputed. In this
-Programming Assignment you will take advantage of the scoping rules of
-the R language and how they can be manipulated to preserve state inside
-of an R object.
+we recommend to install the `plyr`,`dplyr` and `reshape2` packages in R , in order to run the code successfully.
 
-### Example: Caching the Mean of a Vector
+Kindly find below,the comments for each part of the procedure:
 
-In this example we introduce the `<<-` operator which can be used to
-assign a value to an object in an environment that is different from the
-current environment. Below are two functions that are used to create a
-special object that stores a numeric vector and caches its mean.
 
-The first function, `makeVector` creates a special "vector", which is
-really a list containing a function to
+**Lines 9-18:** The compressed(.zip) file is downloaded from the correspodent internet link and the basic folder 'UCI HAR Dataset' is extracted 
 
-1.  set the value of the vector
-2.  get the value of the vector
-3.  set the value of the mean
-4.  get the value of the mean
+in order to read the appropriate files.
 
-<!-- -->
 
-    makeVector <- function(x = numeric()) {
-            m <- NULL
-            set <- function(y) {
-                    x <<- y
-                    m <<- NULL
-            }
-            get <- function() x
-            setmean <- function(mean) m <<- mean
-            getmean <- function() m
-            list(set = set, get = get,
-                 setmean = setmean,
-                 getmean = getmean)
-    }
+```
+download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip",destfile="UCI HAR Dataset.zip",mode="wb")
+unzip("UCI HAR Dataset.zip",exdir=".")
+xtrain <- read.table("./UCI HAR Dataset/train/X_train.txt")
+ytrain <- read.table("./UCI HAR Dataset/train/y_train.txt")
+subtrain <- read.table("./UCI HAR Dataset/train/subject_train.txt")
+xtest <- read.table("./UCI HAR Dataset/test/X_test.txt")
+ytest <- read.table("./UCI HAR Dataset/test/y_test.txt")
+subtest <- read.table("./UCI HAR Dataset/test/subject_test.txt")
+feats <- read.table("./UCI HAR Dataset/features.txt")
+actlbs <- read.table("./UCI HAR Dataset/activity_labels.txt")
 
-The following function calculates the mean of the special "vector"
-created with the above function. However, it first checks to see if the
-mean has already been calculated. If so, it `get`s the mean from the
-cache and skips the computation. Otherwise, it calculates the mean of
-the data and sets the value of the mean in the cache via the `setmean`
-function.
+```
 
-    cachemean <- function(x, ...) {
-            m <- x$getmean()
-            if(!is.null(m)) {
-                    message("getting cached data")
-                    return(m)
-            }
-            data <- x$get()
-            m <- mean(data, ...)
-            x$setmean(m)
-            m
-    }
 
-### Assignment: Caching the Inverse of a Matrix
 
-Matrix inversion is usually a costly computation and there may be some
-benefit to caching the inverse of a matrix rather than computing it
-repeatedly (there are also alternatives to matrix inversion that we will
-not discuss here). Your assignment is to write a pair of functions that
-cache the inverse of a matrix.
+**Lines 23-24:** The 'actlbs' file contains the 6 activity names(check CodeBook.md for further details) and we transform them to lowercase without underscores. 
 
-Write the following functions:
 
-1.  `makeCacheMatrix`: This function creates a special "matrix" object
-    that can cache its inverse.
-2.  `cacheSolve`: This function computes the inverse of the special
-    "matrix" returned by `makeCacheMatrix` above. If the inverse has
-    already been calculated (and the matrix has not changed), then
-    `cacheSolve` should retrieve the inverse from the cache.
+```
+actlbs = gsub("_","",actlbs$V2)
+activ  = tolower(actlbs)
 
-Computing the inverse of a square matrix can be done with the `solve`
-function in R. For example, if `X` is a square invertible matrix, then
-`solve(X)` returns its inverse.
+```
 
-For this assignment, assume that the matrix supplied is always
-invertible.
+**Lines 31-33:** Replacement of the column V1 in 'ytrain' and 'ytest' files with the column 'activity' which contains the full descriptive 6 activity names 
 
-In order to complete this assignment, you must do the following:
+and binding of the 2 files in one (yall).
 
-1.  Fork the GitHub repository containing the stub R files at
-    [https://github.com/rdpeng/ProgrammingAssignment2](https://github.com/rdpeng/ProgrammingAssignment2)
-    to create a copy under your own account.
-2.  Clone your forked GitHub repository to your computer so that you can
-    edit the files locally on your own machine.
-3.  Edit the R file contained in the git repository and place your
-    solution in that file (please do not rename the file).
-4.  Commit your completed R file into YOUR git repository and push your
-    git branch to the GitHub repository under your account.
-5.  Submit to Coursera the URL to your GitHub repository that contains
-    the completed R code for the assignment.
+```
+ytrain <- mutate(ytrain,activity=factor(ytrain$V1,labels=activ))%>%select(-V1)
+ytest <- mutate(ytest,activity=factor(ytest$V1,labels=activ))%>%select(-V1)
+yall <- rbind(ytrain,ytest)
 
-### Grading
+```
 
-This assignment will be graded via peer assessment.
+**Lines 39-41:** We rename the column V1 in 'subtrain' and 'subtest' files with the name 'volunteer', which contains the number of each participant in the test 
+
+(total 30) and bind the 2 files in one (suball).
+
+```
+subtrain <- rename(subtrain,volunteer=V1)
+subtest <- rename(subtest,volunteer=V1)
+suball <- rbind(subtrain,subtest)
+
+```
+
+
+**Lines 47-53:** Transformation of the feature names(check Codebook.md for further details) without dashes,parentheses,double words and renaming the name columns 
+
+in 'xtrain' and 'xtest' files respectively , with the transformed names of the features.Finally, we bind the 2 files in one (datall).  
+
+```
+feats <- select(feats,-V1)
+feats$V2 <- gsub("-","",feats$V2)
+feats$V2 <- gsub("[()]","",feats$V2) 
+feats$V2 <- gsub("BodyBody","Body",feats$V2)
+names(xtrain) <- feats$V2
+names(xtest) <- feats$V2
+datall <- rbind(xtrain,xtest)
+
+```
+
+
+
+**Lines 60-63:** Combination of the 3 files 'datall','yall' and 'suball' in one (finalset1), removing the duplicated columns and keeping only those which refer to 
+
+mean value (mean) and standard deviation (std) measures of the analogous features along with 'volunteer' and 'activity' columns.At the end, sorting by 'volunteer' 
+
+and 'activity' (finalset-data frame).
+
+
+```
+finalset1 <- cbind(datall,yall,suball)
+finalset1 <- finalset1[,!duplicated(colnames(finalset1))]
+g1 <- grep("(mean([a-zA-Z])?$|std)",colnames(finalset1))
+finalset <- select(finalset1,volunteer,activity,g1)%>%arrange(volunteer,activity)
+
+```
+
+
+**Lines 69-71:** Transformation of the gathered data (meltset) so that we can calculate the average of the mean and std features for each volunteer and for each 
+
+activity.Extraction in R console of the table with the final tidy data (finaldata-data frame).
+
+
+```
+meltset <- melt(finalset,id=c("volunteer","activity"),measure.vars=colnames(finalset1)[g1])
+finaldata <- dcast(meltset,volunteer+activity~variable,mean)
+View(finaldata)
+
+```    
